@@ -39,7 +39,9 @@ def _ensure_tool(name: str) -> None:
 
 def download_one(youtube_id: str, out_dir: str, audio_format: str = "wav",
                  sample_rate: int = 16000, retries: int = 3,
-                 cookies_file: str | None = None) -> tuple[str, bool, str]:
+                 cookies_file: str | None = None,
+                 proxy: str | None = None,
+                 impersonate: bool = False) -> tuple[str, bool, str]:
     """Download one YouTube audio. Returns (id, ok, message)."""
     out_path = os.path.join(out_dir, f"{youtube_id}.{audio_format}")
     if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
@@ -61,6 +63,10 @@ def download_one(youtube_id: str, out_dir: str, audio_format: str = "wav",
             "--quiet",
             "--no-warnings",
         ]
+        if impersonate:
+            cmd += ["--impersonate", "Chrome"]
+        if proxy:
+            cmd += ["--proxy", proxy]
         if cookies_file:
             cmd += ["--cookies", cookies_file]
         cmd.append(url)
@@ -92,6 +98,8 @@ def main() -> None:
     parser.add_argument("--sample-rate", type=int, default=16000)
     parser.add_argument("--retries", type=int, default=3)
     parser.add_argument("--cookies", default=None, help="Optional cookies.txt for age/region-restricted videos")
+    parser.add_argument("--proxy", default=None, help="Proxy URL, e.g. http://127.0.0.1:7890")
+    parser.add_argument("--impersonate", action="store_true", help="Enable Chrome impersonation (disabled by default)")
     parser.add_argument("--limit", type=int, default=0, help=">0 means only download the first N unique ids")
     args = parser.parse_args()
 
@@ -115,7 +123,8 @@ def main() -> None:
         futs = {
             ex.submit(
                 download_one, yid, args.out_dir,
-                args.audio_format, args.sample_rate, args.retries, args.cookies,
+                args.audio_format, args.sample_rate, args.retries,
+                args.cookies, args.proxy, args.impersonate,
             ): yid
             for yid in ids
         }

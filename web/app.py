@@ -100,8 +100,9 @@ def build_app() -> FastAPI:
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request):
         return templates.TemplateResponse(
+            request,
             "index.html",
-            {"request": request, "title": "AudioBench Viewer"},
+            {"title": "AudioBench Viewer"},
         )
 
     @app.get("/api/summary")
@@ -205,6 +206,64 @@ def build_app() -> FastAPI:
             rows.append(row)
 
         return {"total": len(filtered), "offset": offset, "limit": limit, "rows": rows}
+
+    @app.get("/api/quiz_chains")
+    def api_quiz_chains(
+        qa_type: Optional[str] = None,
+        qa_level: Optional[str] = None,
+        language_type: Optional[str] = None,
+    ):
+        """Return quiz chains grouped by youtube_id.
+
+        Each chain is one audio + its list of questions, so the user can
+        listen to the audio continuously while answering multiple questions
+        about the same clip (multi-hop reasoning).
+        """
+        from collections import OrderedDict
+
+        samples = APP_STATE["samples"]
+
+        def _match(s):
+            if qa_type and s.qa_type != qa_type:
+                return False
+            if qa_level and s.qa_level != qa_level:
+                return False
+            if language_type and s.language_type != language_type:
+                return False
+            return True
+
+        filtered = [s for s in samples if _match(s)]
+
+        # Group by youtube_id preserving encounter order
+        groups: OrderedDict[str, list] = OrderedDict()
+        for s in filtered:
+            yid = s.youtube_id or "__no_audio__"
+            groups.setdefault(yid, []).append(s)
+
+        chains = []
+        for yid, grp in groups.items():
+            local_audio = grp[0].resolve_local_audio(APP_STATE["audio_dir"])
+            questions = []
+            for s in grp:
+                questions.append({
+                    "sample_id": s.sample_id,
+                    "question_stem": s.question_stem,
+                    "question_full": s.question_full,
+                    "options": s.options,
+                    "answer": s.answer,
+                    "qa_type": s.qa_type,
+                    "qa_level": s.qa_level,
+                    "language_type": s.language_type,
+                })
+            chains.append({
+                "youtube_id": yid,
+                "audio_local_available": bool(local_audio),
+                "audio_url": (f"/audio/{yid}" if local_audio else None),
+                "question_count": len(questions),
+                "questions": questions,
+            })
+
+        return {"total_chains": len(chains), "chains": chains}
 
     @app.get("/audio/{youtube_id}")
     def serve_audio(youtube_id: str):

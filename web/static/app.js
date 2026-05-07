@@ -295,20 +295,47 @@ async function startQuiz() {
   const qaType = document.getElementById("quizType")?.value || "";
   const qaLevel = document.getElementById("quizLevel")?.value || "";
   const lang = document.getElementById("quizLang")?.value || "";
+  const chainMode = document.getElementById("quizChain")?.checked ?? true;
 
   const params = new URLSearchParams();
-  params.set("limit", "200");
   if (qaType) params.set("qa_type", qaType);
   if (qaLevel) params.set("qa_level", qaLevel);
   if (lang) params.set("language_type", lang);
 
   try {
-    const data = await fetchJSON("/api/samples?" + params.toString());
-    if (!data.rows || data.rows.length === 0) {
-      alert("No samples match the selected filters.");
-      return;
+    if (chainMode) {
+      // Chain mode: fetch chains grouped by youtube_id
+      const data = await fetchJSON("/api/quiz_chains?" + params.toString());
+      if (!data.chains || data.chains.length === 0) {
+        alert("No samples match the selected filters.");
+        return;
+      }
+      // Flatten chains into a sequential queue: all Qs from one audio before moving to next
+      const shuffledChains = shuffleArray(data.chains);
+      const queue = [];
+      shuffledChains.forEach(chain => {
+        chain.questions.forEach(q => {
+          queue.push({
+            ...q,
+            youtube_id: chain.youtube_id,
+            audio_local_available: chain.audio_local_available,
+            audio_url: chain.audio_url,
+            _chainTotal: chain.question_count,
+          });
+        });
+      });
+      quiz.queue = queue;
+    } else {
+      // Random mode (original behavior)
+      params.set("limit", "200");
+      const data = await fetchJSON("/api/samples?" + params.toString());
+      if (!data.rows || data.rows.length === 0) {
+        alert("No samples match the selected filters.");
+        return;
+      }
+      quiz.queue = shuffleArray(data.rows);
     }
-    quiz.queue = shuffleArray(data.rows);
+
     quiz.index = 0;
     quiz.selected = null;
     quiz.answered = false;
@@ -339,14 +366,39 @@ function showQuestion() {
   if (qLang) qLang.textContent = s.language_type;
   if (qCounter) qCounter.textContent = `${quiz.index + 1} / ${quiz.queue.length}`;
 
-  // Audio
+  // Chain indicator — show which audio and progress within the chain
+  const chainInfo = document.getElementById("chainInfo");
+  if (chainInfo) {
+    if (s._chainTotal && s._chainTotal > 1) {
+      // Find position within current chain
+      let chainPos = 1;
+      for (let i = quiz.index; i >= 0; i--) {
+        if (quiz.queue[i].youtube_id !== s.youtube_id) break;
+        chainPos = quiz.index - i + 1;
+      }
+      chainInfo.textContent = `🔗 Chain: ${s.youtube_id} — Q${chainPos}/${s._chainTotal}`;
+      chainInfo.style.display = "";
+    } else {
+      chainInfo.style.display = "none";
+    }
+  }
+
+  // Audio — keep playing if same youtube_id, otherwise switch
   const audio = document.getElementById("quizAudio");
   if (audio) {
     if (s.audio_local_available) {
-      audio.src = `/audio/${s.youtube_id}`;
-      audio.style.display = "";
+      const newSrc = `/audio/${s.youtube_id}`;
+      if (audio.getAttribute("data-yid") !== s.youtube_id) {
+        // Different audio: switch and start from beginning
+        audio.src = newSrc;
+        audio.setAttribute("data-yid", s.youtube_id);
+        audio.style.display = "";
+        audio.play().catch(() => {});
+      }
+      // Same audio: don't interrupt — let it keep playing
     } else {
       audio.removeAttribute("src");
+      audio.removeAttribute("data-yid");
       audio.style.display = "none";
     }
   }

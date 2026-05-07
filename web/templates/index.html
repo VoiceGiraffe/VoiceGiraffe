@@ -95,6 +95,10 @@
             <select id="quizType"><option value="">All Types</option></select>
             <select id="quizLevel"><option value="">All Levels</option></select>
             <select id="quizLang"><option value="">All Languages</option></select>
+            <label class="checkbox-label">
+              <input type="checkbox" id="quizChain" checked />
+              <span>🔗 Chain Mode</span>
+            </label>
           </div>
           <button id="btnStartQuiz" class="btn btn-primary">Start Quiz</button>
         </div>
@@ -122,6 +126,7 @@
             <span class="tag" id="qLevel"></span>
             <span class="tag" id="qLang"></span>
             <span class="q-counter" id="qCounter"></span>
+            <span class="chain-info" id="chainInfo" style="display:none;"></span>
           </div>
 
           <div class="q-audio">
