@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoiceGiraffe</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo-emoji">🦒</span>
+      <h1>VoiceGiraffe</h1>
+      <span class="subtitle">Hour-Scale Audio Understanding Benchmark</span>
+    </div>
+    <div class="model-controls">
+      <div class="model-status">
+        <span class="status-dot" id="modelDot"></span>
+        <span class="status-text" id="modelStatus">No model loaded</span>
+      </div>
+      <select id="modelSelect">
+        <option value="">Select model...</option>
+      </select>
+      <button id="btnLoadModel" class="btn btn-primary btn-sm">Load</button>
+    </div>
+  </header>
+
+  <!-- TAB NAV -->
+  <nav class="tab-nav">
+    <button class="tab active" data-tab="dashboard">Dashboard</button>
+    <button class="tab" data-tab="quiz">Quiz Mode</button>
+    <button class="tab" data-tab="samples">Samples</button>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main class="content">
+
+    <!-- DASHBOARD TAB -->
+    <section class="tab-panel active" id="panel-dashboard">
+      <div class="cards">
+        <div class="card">
+          <div class="card-label">Total Samples</div>
+          <div class="card-value" id="statTotal">—</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Unique Audios</div>
+          <div class="card-value" id="statAudios">—</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Available Locally</div>
+          <div class="card-value" id="statLocal">—</div>
+        </div>
+        <div class="card card-highlight">
+          <div class="card-label">Model Accuracy</div>
+          <div class="card-value" id="statAcc">—</div>
+        </div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h3>Accuracy by Task Type</h3>
+          <canvas id="chartType"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Accuracy by Level</h3>
+          <canvas id="chartLevel"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Accuracy by Language</h3>
+          <canvas id="chartLang"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Task × Language (Radar)</h3>
+          <canvas id="chartRadar"></canvas>
+        </div>
+      </div>
+
+      <!-- Run selector for dashboard -->
+      <div class="run-selector">
+        <label>Results run:</label>
+        <select id="runSelect"><option value="">— none —</option></select>
+      </div>
+    </section>
+
+    <!-- QUIZ TAB -->
+    <section class="tab-panel" id="panel-quiz">
+      <div class="quiz-container">
+        <!-- Quiz Controls -->
+        <div class="quiz-controls">
+          <div class="quiz-filters">
+            <select id="quizType"><option value="">All Types</option></select>
+            <select id="quizLevel"><option value="">All Levels</option></select>
+            <select id="quizLang"><option value="">All Languages</option></select>
+          </div>
+          <button id="btnStartQuiz" class="btn btn-primary">Start Quiz</button>
+        </div>
+
+        <!-- Quiz Stats -->
+        <div class="quiz-stats" id="quizStats" style="display:none;">
+          <div class="stat-item">
+            <span class="stat-num" id="quizCorrect">0</span>
+            <span class="stat-label">Correct</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-num" id="quizTotal">0</span>
+            <span class="stat-label">Answered</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-num" id="quizAccuracy">0%</span>
+            <span class="stat-label">Accuracy</span>
+          </div>
+        </div>
+
+        <!-- Question Area -->
+        <div class="quiz-question" id="quizQuestion" style="display:none;">
+          <div class="q-meta">
+            <span class="tag" id="qTag"></span>
+            <span class="tag" id="qLevel"></span>
+            <span class="tag" id="qLang"></span>
+            <span class="q-counter" id="qCounter"></span>
+          </div>
+
+          <div class="q-audio">
+            <audio id="quizAudio" controls></audio>
+          </div>
+
+          <div class="q-stem" id="qStem"></div>
+
+          <div class="q-options" id="qOptions">
+            <!-- 4 option cards rendered by JS -->
+          </div>
+
+          <div class="q-actions">
+            <button id="btnSubmit" class="btn btn-primary" disabled>Submit Answer</button>
+            <button id="btnModelInfer" class="btn btn-ghost">Ask Model 🤖</button>
+            <button id="btnNext" class="btn btn-ghost" style="display:none;">Next →</button>
+          </div>
+
+          <!-- Result after submit -->
+          <div class="q-result" id="qResult" style="display:none;">
+            <div class="result-row" id="resultHuman"></div>
+            <div class="result-row" id="resultModel"></div>
+            <div class="result-row" id="resultGold"></div>
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <div class="quiz-empty" id="quizEmpty">
+          <div class="empty-icon">🦒</div>
+          <p>Select filters and click <strong>Start Quiz</strong> to begin!</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SAMPLES TAB -->
+    <section class="tab-panel" id="panel-samples">
+      <div class="filters-bar">
+        <select id="fType"><option value="">All Types</option></select>
+        <select id="fLevel"><option value="">All Levels</option></select>
+        <select id="fLang"><option value="">All Languages</option></select>
+        <select id="fRun"><option value="">No run selected</option></select>
+        <label class="checkbox-label">
+          <input type="checkbox" id="fOnlyWrong" />
+          <span>Wrong only</span>
+        </label>
+        <button id="btnFilter" class="btn btn-primary btn-sm">Filter</button>
+      </div>
+
+      <div class="samples-header">
+        <span class="sample-count" id="samplesMeta"></span>
+        <div class="pager">
+          <button id="prevPage" class="btn btn-ghost btn-sm">← Prev</button>
+          <span id="pageInfo" class="page-info"></span>
+          <button id="nextPage" class="btn btn-ghost btn-sm">Next →</button>
+        </div>
+      </div>
+
+      <div id="samplesList" class="samples-list"></div>
+    </section>
+
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
