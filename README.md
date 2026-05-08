@@ -130,7 +130,7 @@ python web/app.py \
   --jsonl benchmark/benchmark_1500.jsonl \
   --audio-dir audios \
   --results-dir results \
-  --host 0.0.0.0 --port 7860
+  --host 127.0.0.0 --port 7860
 ```
 
 Open <http://localhost:7860>. The viewer auto-discovers every subdirectory of
@@ -161,14 +161,3 @@ Open <http://localhost:7860>. The viewer auto-discovers every subdirectory of
   }
 }
 ```
-
-
-## Notes
-
-- Commit the JSONL but **not** the audios; instead ship the downloader and a
-  failure list. This stays under file-size limits and respects YouTube licensing.
-- Pin everything in `requirements.txt`; declare `ffmpeg` as an external dependency.
-- For reproducibility, fix `--dtype`, `--device`, and `--max-new-tokens` and
-  log them in `metrics.json` (already done by `run_eval.py`).
-- The `dummy` backend gives ~25% accuracy — a useful sanity check that the
-  pipeline is neither always-correct nor always-wrong.
